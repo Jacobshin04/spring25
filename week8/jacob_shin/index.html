@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+      #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
+      #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
+      #input:focus { outline: none; }
+      #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; }
+
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages > li { padding: 0.5rem 1rem; }
+      #messages > li:nth-child(odd) { background: #efefef; }
+    </style>
+  </head>
+  <body>
+    <ul id="messages"></ul>
+    <form id="form" action="">
+      <input id="input" autocomplete="off" oninput="handleTyping()"/><button>Send</button><button onclick="get_nickname()">Change Nickname</button><button onclick="delete_chat_history()">Delete Chat History</button>
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      function test() {
+        console.log("someone is typing");
+      }
+      var socket = io();
+      socket.nickname = null
+      function delete_chat_history() {
+        msg = "hello";
+        socket.emit('delete', msg);
+        var messages = document.getElementById('messages');
+        messages.innerHTML = "";
+      }
+      function get_nickname() {
+        let nickname = prompt("Please enter your nickname", "if you want to be anonymous, just press enter");
+        if (nickname == "if you want to be anonymous, just press enter"){
+          nickname = 'Anonymous'
+        }
+        socket.emit('nickname', nickname);
+        socket.nickname = nickname
+      } 
+
+      if (socket.nickname == null)
+      {get_nickname()}
+      
+
+
+    
+      var messages = document.getElementById('messages');
+      var form = document.getElementById('form');
+      var input = document.getElementById('input');
+    
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if(input.value){
+        socket.emit('chat message', input.value);
+        input.value = '';
+        }
+      });
+    
+      socket.on('chat message', function(msg) {
+        var item = document.createElement('li');
+        item.textContent = msg;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+      
+      socket.on('typing', function(msg) {
+        if (socket.typing != 1){
+          var item = document.createElement('li');
+          item.textContent = msg;
+          item.id = "typing";
+          messages.appendChild(item);
+          window.scrollTo(0, document.body.scrollHeight);
+          socket.typing = 1;
+        }
+      });
+
+      socket.on('not typing', function() {
+        var typingItem = document.getElementById('typing');
+        if (typingItem) {
+          typingItem.remove();
+        }
+        socket.typing = 0;
+      });
+
+      function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+          clearTimeout(timeout);
+          timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+      }
+
+      // Handle typing event
+      const handleTyping = debounce(() => {
+        if (input.value.length > 0) {
+          socket.emit('typing');
+        } else {
+          socket.emit('not typing');
+        }
+      }, 300);
+    </script>
+
+  </body>
+</html>
